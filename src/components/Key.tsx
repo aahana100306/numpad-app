@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useDeviceStore } from "../store/deviceStore";
 
 type Props = {
@@ -6,13 +7,7 @@ type Props = {
 };
 
 function formatLabel(label: string) {
-  return label
-    .replace("KC_", "")
-    .replace("ENTER", "Enter")
-    .replace("ESC", "Esc")
-    .replace("SPACE", "Space")
-    .replace("BSPC", "⌫")
-    .replace("TAB", "Tab");
+  return label.replace("KC_", "");
 }
 
 function Key({ label, index }: Props) {
@@ -20,20 +15,20 @@ function Key({ label, index }: Props) {
   const isSelected = selectedKey === index;
 
   return (
-    <div
+    <motion.div
       onClick={() => setSelectedKey(index)}
-      className={`
-        w-16 h-16 rounded-xl flex items-center justify-center
-        text-sm font-medium cursor-pointer
-        transition-all duration-200
-
-        ${isSelected
-          ? "bg-blue-500 scale-105 shadow-lg"
-          : "bg-gray-700 hover:bg-gray-600"}
-      `}
+      initial={{ scale: 1 }}
+      animate={{
+        scale: isSelected ? 1.1 : 1,
+        backgroundColor: isSelected ? "#3b82f6" : "#374151",
+      }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 300 }}
+      className="w-16 h-16 rounded-xl flex items-center justify-center text-sm font-medium cursor-pointer"
     >
       {formatLabel(label)}
-    </div>
+    </motion.div>
   );
 }
 

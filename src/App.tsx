@@ -1,7 +1,8 @@
 import { useDeviceStore } from "./store/deviceStore";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, useLocation } from "react-router-dom";
 import { keyOptions } from "./data/keyOptions";
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 import Keymap from "./screens/Keymap";
 import Encoder from "./screens/Encoder";
@@ -11,6 +12,8 @@ import Profiles from "./screens/Profiles";
 import Firmware from "./screens/Firmware";
 
 function App() {
+  const location = useLocation();
+
   const {
     currentLayer,
     selectedKey,
@@ -22,110 +25,129 @@ function App() {
     saveChanges,
     connected,
     toggleConnection,
+    currentProfile,
   } = useDeviceStore();
 
   const keymap = keymaps[currentLayer];
-
   const [activeTab, setActiveTab] = useState("standard");
 
+  const menuItems = [
+    { name: "Keymap", path: "/" },
+    { name: "Encoder", path: "/encoder" },
+    { name: "OLED", path: "/oled" },
+    { name: "Macros", path: "/macros" },
+    { name: "Profiles", path: "/profiles" },
+    { name: "Firmware", path: "/firmware" },
+  ];
+
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-gray-900 text-white">
 
-      {/* Top Bar */}
-      <div className="h-12 bg-gray-800 flex items-center px-6 justify-between border-b border-gray-700">
+      {/* SIDEBAR */}
+      <div className="w-64 bg-gray-800 p-5 flex flex-col justify-between">
 
-        {/* Left: Connection */}
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              connected ? "bg-green-500" : "bg-red-500"
-            }`}
-          ></div>
+        <div>
+          <h1 className="text-lg font-bold mb-6">Numpad Configurator</h1>
 
-          <span className="text-sm">
-            {connected ? "Device Connected" : "Device Disconnected"}
-          </span>
+          <ul className="space-y-2">
+            {menuItems.map((item) => {
+              const isActive = location.pathname === item.path;
 
-          <button
-            onClick={toggleConnection}
-            className="ml-3 px-2 py-1 text-xs bg-gray-700 rounded hover:bg-gray-600"
-          >
-            {connected ? "Disconnect" : "Connect"}
-          </button>
-        </div>
+              return (
+                <li key={item.name}>
+                  <Link to={item.path}>
+                    <div
+                      className={`
+                        px-3 py-2 rounded-lg cursor-pointer
+                        transition-all duration-200
 
-        {/* Right */}
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-400">
-            Layer: {currentLayer}
-          </span>
-
-          <button
-            onClick={saveChanges}
-            disabled={!hasUnsavedChanges}
-            className={`px-3 py-1 rounded ${
-              hasUnsavedChanges
-                ? "bg-yellow-500 text-black"
-                : "bg-gray-600 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Save
-          </button>
-        </div>
-
-      </div>
-
-      {/* Main Layout */}
-      <div className="flex-1 flex bg-gray-900">
-
-        {/* Sidebar */}
-        <div className="w-60 bg-gray-800 p-4">
-          <h2 className="text-xl font-bold mb-6">Menu</h2>
-          <ul className="space-y-3">
-            {[
-              ["Keymap", "/"],
-              ["Encoder", "/encoder"],
-              ["OLED", "/oled"],
-              ["Macros", "/macros"],
-              ["Profiles", "/profiles"],
-              ["Firmware", "/firmware"],
-            ].map(([name, path]) => (
-              <li key={name}>
-                <Link
-                  to={path}
-                  className="block px-3 py-2 rounded hover:bg-gray-700 transition"
-                >
-                  {name}
-                </Link>
-              </li>
-            ))}
+                        ${isActive
+                          ? "bg-blue-500 text-white"
+                          : "hover:bg-gray-700 text-gray-300"}
+                      `}
+                    >
+                      {item.name}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 flex">
+        {/* Device status */}
+        <div className="bg-gray-700 p-3 rounded-lg text-sm">
+          <p className="text-green-400">● Connected</p>
+          <p className="text-gray-400 mt-1">Firmware v1.0</p>
+        </div>
+      </div>
 
-          {/* Left */}
-          <div className="flex-1 p-6">
+      {/* MAIN */}
+      <div className="flex-1 flex flex-col">
 
-            {/* Layer Tabs */}
-            <div className="flex gap-2 mb-4">
-              {layers.map((layer, index) => (
-                <button
-                  key={index}
-                  onClick={() => setLayer(index)}
-                  className={`px-3 py-1 rounded ${
-                    currentLayer === index
-                      ? "bg-blue-500"
-                      : "bg-gray-700 hover:bg-gray-600"
-                  }`}
-                >
-                  {layer}
-                </button>
-              ))}
-            </div>
+        {/* TOP BAR */}
+        <div className="h-14 flex items-center justify-between px-6 border-b border-gray-700">
 
-            {/* Routes */}
+          <div className="flex items-center gap-4">
+            <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
+            <span>{connected ? "Device Connected" : "Disconnected"}</span>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleConnection}
+              className="bg-gray-700 px-2 py-1 rounded text-sm"
+            >
+              {connected ? "Disconnect" : "Connect"}
+            </motion.button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span>Profile: {currentProfile}</span>
+            <span>Layer: {currentLayer}</span>
+
+            <motion.button
+              animate={{
+                boxShadow: hasUnsavedChanges
+                  ? "0px 0px 10px rgba(59,130,246,0.7)"
+                  : "none",
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={saveChanges}
+              className={`px-3 py-1 rounded ${
+                hasUnsavedChanges ? "bg-blue-500" : "bg-gray-600"
+              }`}
+            >
+              Save Changes
+            </motion.button>
+          </div>
+        </div>
+
+        {/* LAYERS */}
+        <div className="flex gap-3 px-6 py-4">
+          {layers.map((layer, i) => (
+            <motion.button
+              key={i}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setLayer(i)}
+              className={`px-4 py-1 rounded ${
+                currentLayer === i
+                  ? "bg-blue-500"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+            >
+              {layer}
+            </motion.button>
+          ))}
+        </div>
+
+        {/* CONTENT */}
+        <div className="flex-1 px-6 pb-6 flex gap-6">
+
+          {/* LEFT PANEL */}
+          <div className="flex-1 bg-gray-800 rounded-xl p-6 flex items-center justify-center">
             <Routes>
               <Route path="/" element={<Keymap />} />
               <Route path="/encoder" element={<Encoder />} />
@@ -134,64 +156,80 @@ function App() {
               <Route path="/profiles" element={<Profiles />} />
               <Route path="/firmware" element={<Firmware />} />
             </Routes>
-
           </div>
 
-          {/* Right Panel */}
-          <div className="w-80 bg-gray-800 p-6 border-l border-gray-700">
+          {/* CENTER PANEL (empty / preview) */}
+          <div className="flex-1 bg-gray-800 rounded-xl flex items-center justify-center">
+            {selectedKey === null ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center text-gray-400"
+              >
+                <div className="text-4xl mb-3">🖱️</div>
+                <p className="text-lg">Select a key</p>
+                <p className="text-sm mt-1">Click a key to configure</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                className="text-center"
+              >
+                <p className="mb-3">Selected Key</p>
+                <div className="w-16 h-16 bg-gray-700 rounded-xl flex items-center justify-center text-lg">
+                  {keymap[selectedKey].replace("KC_", "")}
+                </div>
+              </motion.div>
+            )}
+          </div>
 
-  <h2 className="text-xl font-semibold mb-4">Key Settings</h2>
-
-  {selectedKey !== null ? (
-    <div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        {["standard", "media", "macro", "layer"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1 text-sm rounded ${
-              activeTab === tab
-                ? "bg-blue-500"
-                : "bg-gray-700 hover:bg-gray-600"
-            }`}
+          {/* RIGHT PANEL */}
+          <motion.div
+            initial={{ x: 50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="w-80 bg-gray-800 p-5 rounded-xl"
           >
-            {tab}
-          </button>
-        ))}
-      </div>
+            <h2 className="text-lg mb-4">Key Settings</h2>
 
-      {/* Dropdown */}
-      <label className="text-sm text-gray-400">Key Action</label>
-      <select
-        disabled={!connected}
-        className="w-full mt-2 p-2 bg-gray-700 rounded text-white"
-        value={keymap[selectedKey]}
-        onChange={(e) => setKey(selectedKey, e.target.value)}
-      >
-        {keyOptions.map((key) => (
-          <option key={key} value={key}>
-            {key}
-          </option>
-        ))}
-      </select>
+            {selectedKey !== null ? (
+              <div>
 
-      {/* Preview */}
-      <div className="mt-6">
-        <p className="text-sm text-gray-400 mb-2">Preview</p>
-        <div className="w-16 h-16 bg-gray-700 rounded-xl flex items-center justify-center">
-          {keymap[selectedKey].replace("KC_", "")}
-        </div>
-      </div>
+                {/* Tabs */}
+                <div className="flex gap-2 mb-4">
+                  {["standard", "media", "macro", "layer"].map((tab) => (
+                    <motion.button
+                      key={tab}
+                      whileHover={{ scale: 1.05 }}
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-2 py-1 rounded ${
+                        activeTab === tab
+                          ? "bg-blue-500"
+                          : "bg-gray-700 hover:bg-gray-600"
+                      }`}
+                    >
+                      {tab}
+                    </motion.button>
+                  ))}
+                </div>
 
-    </div>
-  ) : (
-    <p className="text-gray-400">Select a key</p>
-  )}
+                {/* Dropdown */}
+                <select
+                  className="w-full p-2 bg-gray-700 rounded"
+                  value={keymap[selectedKey]}
+                  onChange={(e) => setKey(selectedKey, e.target.value)}
+                >
+                  {keyOptions.map((k) => (
+                    <option key={k}>{k}</option>
+                  ))}
+                </select>
 
-</div>
-
+              </div>
+            ) : (
+              <p className="text-gray-400">Select a key</p>
+            )}
+          </motion.div>
 
         </div>
       </div>
