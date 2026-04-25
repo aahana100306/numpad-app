@@ -22,9 +22,15 @@ type DeviceState = {
   selectedKey: number | null;
   setSelectedKey: (index: number) => void;
 
+  hoveredKey: number | null;
+  setHoveredKey: (index: number | null) => void;
+
   hasUnsavedChanges: boolean;
   saveChanges: () => void;
 
+  resetLayer: (layer: number) => void;
+
+  // Profiles
   profiles: Profile[];
   currentProfile: string;
   createProfile: (name: string) => void;
@@ -33,22 +39,43 @@ type DeviceState = {
 
   exportProfile: () => void;
   importProfile: (data: Profile) => void;
+
+  // Encoder
+  encoder: {
+    left: string;
+    right: string;
+    press: string;
+  };
+  setEncoder: (type: "left" | "right" | "press", value: string) => void;
+
+  // OLED
+  oled: {
+    layout: {
+      A: string;
+      B: string;
+      C: string;
+    };
+    logo: string | null;
+    perProfile: boolean;
+  };
+  setOledLayout: (zone: "A" | "B" | "C", value: string) => void;
+  setOledLogo: (data: string | null) => void;
+  setOledProfileMode: (val: boolean) => void;
 };
 
 const STORAGE_KEY = "numpad-app-data";
 
-/* 🔹 Load from localStorage */
+/* 🔹 Load */
 const loadData = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return null;
-    return JSON.parse(data);
+    return data ? JSON.parse(data) : null;
   } catch {
     return null;
   }
 };
 
-/* 🔹 Save to localStorage */
+/* 🔹 Save */
 const saveData = (data: any) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 };
@@ -56,33 +83,34 @@ const saveData = (data: any) => {
 const saved = loadData();
 
 export const useDeviceStore = create<DeviceState>((set, get) => ({
-  // Device
+  /* DEVICE */
   connected: true,
   connect: () => set({ connected: true }),
   disconnect: () => set({ connected: false }),
   toggleConnection: () =>
     set((state) => ({ connected: !state.connected })),
 
-  // Layers
+  /* LAYERS */
   currentLayer: 0,
   layers: mockBackend.layers,
   setLayer: (layer) => set({ currentLayer: layer }),
 
-  // Keymaps
+  /* KEYMAPS */
   keymaps:
     saved?.keymaps || [
-      Array(17).fill("KC_1"),
-      Array(17).fill("KC_2"),
-      Array(17).fill("KC_3"),
-      Array(17).fill("KC_4"),
+      Array(18).fill("KC_1"),
+      Array(18).fill("KC_2"),
+      Array(18).fill("KC_3"),
+      Array(18).fill("KC_4"),
     ],
 
   setKey: (index, value) =>
     set((state) => {
-      const newKeymaps = [...state.keymaps];
-      const layerCopy = [...newKeymaps[state.currentLayer]];
-      layerCopy[index] = value;
-      newKeymaps[state.currentLayer] = layerCopy;
+      const newKeymaps = state.keymaps.map((layer, i) =>
+        i === state.currentLayer
+          ? layer.map((k, idx) => (idx === index ? value : k))
+          : layer
+      );
 
       const newState = {
         keymaps: newKeymaps,
@@ -90,35 +118,66 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       };
 
       saveData({
-        ...get(),
-        ...newState,
+        keymaps: newKeymaps,
+        profiles: state.profiles,
+        currentProfile: state.currentProfile,
       });
 
       return newState;
     }),
 
-  // Selection
+  /* SELECTION */
   selectedKey: null,
   setSelectedKey: (index) => set({ selectedKey: index }),
 
-  // Save state
+  hoveredKey: null,
+  setHoveredKey: (index) => set({ hoveredKey: index }),
+
+  /* SAVE STATE */
   hasUnsavedChanges: false,
+
   saveChanges: () =>
     set((state) => {
-      saveData(state);
+      saveData({
+        keymaps: state.keymaps,
+        profiles: state.profiles,
+        currentProfile: state.currentProfile,
+      });
+
       return { hasUnsavedChanges: false };
     }),
 
-  // Profiles
+  /* RESET LAYER */
+  resetLayer: (layer) =>
+    set((state) => {
+      const newKeymaps = state.keymaps.map((l, i) =>
+        i === layer ? Array(18).fill("KC_NO") : l
+      );
+
+      const newState = {
+        keymaps: newKeymaps,
+        hasUnsavedChanges: true,
+      };
+
+      saveData({
+        keymaps: newKeymaps,
+        profiles: state.profiles,
+        currentProfile: state.currentProfile,
+      });
+
+      return newState;
+    }),
+
+  /* PROFILES */
   profiles:
     saved?.profiles || [
       {
         name: "Default",
         keymaps: [
-          Array(17).fill("KC_1"),
-          Array(17).fill("KC_2"),
-          Array(17).fill("KC_3"),
-          Array(17).fill("KC_4"),
+          Array(18).fill("KC_1"),
+          Array(18).fill("KC_2"),
+          Array(18).fill("KC_3"),
+          Array(18).fill("KC_4"),
         ],
       },
     ],
@@ -129,13 +188,14 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
     set((state) => {
       const newProfiles = [
         ...state.profiles,
-        {
-          name,
-          keymaps: state.keymaps,
-        },
+        { name, keymaps: state.keymaps },
       ];
 
-      saveData({ ...state, profiles: newProfiles });
+      saveData({
+        keymaps: state.keymaps,
+        profiles: newProfiles,
+        currentProfile: state.currentProfile,
+      });
 
       return { profiles: newProfiles };
     }),
@@ -145,32 +205,37 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       const profile = state.profiles.find((p) => p.name === name);
       if (!profile) return state;
 
-      const newState = {
+      saveData({
+        keymaps: profile.keymaps,
+        profiles: state.profiles,
+        currentProfile: name,
+      });
+
+      return {
         keymaps: profile.keymaps,
         currentProfile: name,
       };
-
-      saveData({ ...state, ...newState });
-
-      return newState;
     }),
 
   deleteProfile: (name) =>
     set((state) => {
       const newProfiles = state.profiles.filter((p) => p.name !== name);
 
-      saveData({ ...state, profiles: newProfiles });
+      saveData({
+        keymaps: state.keymaps,
+        profiles: newProfiles,
+        currentProfile: state.currentProfile,
+      });
 
       return { profiles: newProfiles };
     }),
 
-  // Export
+  /* EXPORT */
   exportProfile: () => {
     const state = get();
     const profile = state.profiles.find(
       (p) => p.name === state.currentProfile
     );
-
     if (!profile) return;
 
     const blob = new Blob([JSON.stringify(profile, null, 2)], {
@@ -178,22 +243,79 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
     });
 
     const url = URL.createObjectURL(blob);
-
     const a = document.createElement("a");
     a.href = url;
     a.download = `${profile.name}.json`;
     a.click();
-
     URL.revokeObjectURL(url);
   },
 
-  // Import
+  /* IMPORT */
   importProfile: (data) =>
     set((state) => {
       const newProfiles = [...state.profiles, data];
 
-      saveData({ ...state, profiles: newProfiles });
+      saveData({
+        keymaps: state.keymaps,
+        profiles: newProfiles,
+        currentProfile: state.currentProfile,
+      });
 
       return { profiles: newProfiles };
     }),
+
+  /* ENCODER */
+  encoder: {
+    left: "KC_VOLU",
+    right: "KC_VOLD",
+    press: "KC_MUTE",
+  },
+
+  setEncoder: (type, value) =>
+    set((state) => ({
+      encoder: {
+        ...state.encoder,
+        [type]: value,
+      },
+      hasUnsavedChanges: true,
+    })),
+
+  /* OLED */
+  oled: {
+    layout: {
+      A: "Layer",
+      B: "Profile",
+      C: "Custom",
+    },
+    logo: null,
+    perProfile: false,
+  },
+
+  setOledLayout: (zone, value) =>
+    set((state) => ({
+      oled: {
+        ...state.oled,
+        layout: {
+          ...state.oled.layout,
+          [zone]: value,
+        },
+      },
+      hasUnsavedChanges: true,
+    })),
+
+  setOledLogo: (data) =>
+    set((state) => ({
+      oled: {
+        ...state.oled,
+        logo: data,
+      },
+    })),
+
+  setOledProfileMode: (val) =>
+    set((state) => ({
+      oled: {
+        ...state.oled,
+        perProfile: val,
+      },
+    })),
 }));

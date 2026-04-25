@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useDeviceStore } from "../store/deviceStore";
 import Key from "../components/Key";
 
@@ -7,20 +6,46 @@ function Keymap() {
   const keymap = keymaps[currentLayer];
 
   return (
-    <div className="flex h-full items-center justify-center">
+    <div className="flex justify-center items-center">
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="bg-gray-800 p-6 rounded-2xl shadow-xl"
-      >
-        <div className="grid grid-cols-4 gap-4">
-          {keymap.map((key, index) => (
-            <Key key={index} label={key} index={index} />
+      <div className="flex flex-col gap-4">
+
+        {/* ROW 1 (top - narrow) */}
+        <div className="flex gap-3 translate-x-6">
+          {[0, 1, 2, 3].map((i) => (
+            <Key key={i} label={keymap[i] || "KC_NO"} index={i} />
           ))}
         </div>
-      </motion.div>
+
+        {/* ROW 2 */}
+        <div className="flex gap-3 translate-x-2">
+          {[4, 5, 6, 7].map((i) => (
+            <Key key={i} label={keymap[i] || "KC_NO"} index={i} />
+          ))}
+        </div>
+
+        {/* ROW 3 (widest - center of arc) */}
+        <div className="flex gap-3 -translate-x-4">
+          {[8, 9, 10].map((i) => (
+            <Key key={i} label={keymap[i] || "KC_NO"} index={i} />
+          ))}
+        </div>
+
+        {/* ROW 4 */}
+        <div className="flex gap-3 translate-x-2">
+          {[11, 12, 13, 14].map((i) => (
+            <Key key={i} label={keymap[i] || "KC_NO"} index={i} />
+          ))}
+        </div>
+
+        {/* ROW 5 (bottom - narrow again) */}
+        <div className="flex gap-4 translate-x-6">
+          {[15, 16, 17].map((i) => (
+            <Key key={i} label={keymap[i] || "KC_NO"} index={i} />
+          ))}
+        </div>
+
+      </div>
 
     </div>
   );
