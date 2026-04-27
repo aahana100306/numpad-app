@@ -1,40 +1,48 @@
 import { useDeviceStore } from "../store/deviceStore";
 import { useEffect } from "react";
+
 import {
-    DndContext,
-    useDraggable,
-    useDroppable,
+  DndContext,
+  closestCenter,
 } from "@dnd-kit/core";
 
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+
+/* ================= DRAGGABLE STEP ================= */
+
 function DraggableStep({ step, index }: any) {
-    const {
+  const {
     attributes,
     listeners,
-    setNodeRef: setDragRef,
+    setNodeRef,
     transform,
-  } = useDraggable({
-    id: index,
-  });
-
-  const { setNodeRef: setDropRef } = useDroppable({
+    transition,
+  } = useSortable({
     id: index,
   });
 
   const style = {
-    transform: transform
-      ? `translate(${transform.x}px, ${transform.y}px)`
+    transform: CSS.Transform.toString(transform),
+    transition,
+    boxShadow: transform
+      ? "0 8px 20px rgba(0,0,0,0.4)"
       : undefined,
+    zIndex: transform ? 999 : "auto",
   };
+
   return (
     <div
-      ref={(node) => {
-        setDragRef(node);
-        setDropRef(node);
-      }}
+      ref={setNodeRef}
       style={style}
-      {...listeners}
       {...attributes}
-      className="bg-gray-700 p-3 rounded flex justify-between items-center cursor-grab"
+      {...listeners}
+      className="bg-gray-700 p-3 rounded flex justify-between items-center cursor-grab active:cursor-grabbing hover:bg-gray-600 transition"
     >
       <span>
         {step.type === "key"
@@ -43,8 +51,9 @@ function DraggableStep({ step, index }: any) {
       </span>
     </div>
   );
-
 }
+
+/* ================= MAIN COMPONENT ================= */
 
 function Macros() {
   const {
@@ -66,19 +75,17 @@ function Macros() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (!isRecording) return;
-        const key = `KC_${e.key.toUpperCase()}`;
-        recordKey(key);
+      if (!isRecording) return;
+      const key = `KC_${e.key.toUpperCase()}`;
+      recordKey(key);
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-    };
-}, [isRecording]);
 
-const { setNodeRef } = useDroppable({
-    id: "drop-zone",
-});
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isRecording]);
 
   return (
     <div className="flex h-full gap-4">
@@ -104,19 +111,18 @@ const { setNodeRef } = useDroppable({
           <div
             key={macro.id}
             onClick={() => selectMacro(macro.id)}
-            className={`p-3 mb-2 rounded cursor-pointer transition
-              ${
-                selectedMacro === macro.id
-                  ? "bg-blue-600"
-                  : "bg-gray-700 hover:bg-gray-600"
-              }`}
+            className={`p-3 mb-2 rounded cursor-pointer transition ${
+              selectedMacro === macro.id
+                ? "bg-blue-600"
+                : "bg-gray-700 hover:bg-gray-600"
+            }`}
           >
             <div className="flex justify-between items-center">
               <span className="font-medium">{macro.name}</span>
 
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // 🔥 IMPORTANT
+                  e.stopPropagation();
                   deleteMacro(macro.id);
                 }}
                 className="text-red-400 hover:text-red-600"
@@ -164,19 +170,20 @@ const { setNodeRef } = useDroppable({
                 Add Delay
               </button>
 
-              {/* 🔴 RECORD BUTTON */}
               <button
                 onClick={() =>
-                    isRecording ? stopRecording() : startRecording()
+                  isRecording
+                    ? stopRecording()
+                    : startRecording()
                 }
                 className={`px-4 py-2 rounded ${
-                    isRecording
-                      ? "bg-red-600 animate-pulse"
-                      : "bg-red-500 hover:bg-red-600"
+                  isRecording
+                    ? "bg-red-600 animate-pulse"
+                    : "bg-red-500 hover:bg-red-600"
                 }`}
-            >
+              >
                 {isRecording ? "Recording..." : "Record"}
-            </button>
+              </button>
             </div>
 
             {/* ===== STEPS LIST ===== */}
@@ -188,27 +195,35 @@ const { setNodeRef } = useDroppable({
               )}
 
               <DndContext
-  onDragEnd={(event) => {
-    const { active, over } = event;
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => {
+                  const { active, over } = event;
+                  if (!over) return;
 
-    if (!over) return;
+                  const oldIndex = active.id as number;
+                  const newIndex = over.id as number;
 
-    const from = active.id as number;
-    const to = over.id as number;
+                  if (oldIndex !== newIndex) {
+                    reorderSteps(oldIndex, newIndex);
+                  }
+                }}
+              >
+                <SortableContext
+                  items={currentMacro.steps.map((_, i) => i)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {currentMacro.steps.map((step, index) => (
+                      <DraggableStep
+                        key={index}
+                        step={step}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
-    console.log("REORDER:", from, "->", to);
-
-    if (from !== to) {
-      reorderSteps(from, to);
-    }
-  }}
->
-  <div className="space-y-2">
-    {currentMacro.steps.map((step, index) => (
-      <DraggableStep key={index} step={step} index={index} />
-    ))}
-  </div>
-</DndContext>
             </div>
           </>
         )}
