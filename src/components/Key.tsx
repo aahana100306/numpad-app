@@ -13,9 +13,6 @@ function Key({ label, index }: Props) {
     // 1️⃣ select key
     setSelectedKey(index);
 
-    // 2️⃣ TEMP default assign (optional)
-    setKey(index, "KC_A");
-
     // 3️⃣ map index → row/col
     const indexMap = [
       [0, 1, 2, 3],

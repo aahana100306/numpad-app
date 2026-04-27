@@ -14,6 +14,10 @@ import Firmware from "./screens/Firmware";
 function App() {
   const location = useLocation();
   const isMacrosPage = location.pathname === "/macros";
+  const {
+  macros,
+} = useDeviceStore();
+
 
   const {
     currentLayer,
@@ -29,11 +33,14 @@ function App() {
     currentProfile,
     resetLayer,
   } = useDeviceStore();
+  
 
   const keymap = keymaps[currentLayer] || [];
 
   const selectedValue =
     selectedKey !== null ? keymap[selectedKey] || "KC_NO" : undefined;
+
+    const isMacro = selectedValue?.startsWith("MACRO_");
 
   const [activeTab, setActiveTab] =
     useState<keyof typeof keyCategories>("standard");
@@ -252,10 +259,12 @@ function App() {
                       <p className="text-sm text-gray-400 mb-1">Key Action</p>
                       <select
                         className="w-full p-2 bg-gray-700 rounded"
-                        value={selectedValue || "KC_NO"}
-                        onChange={(e) =>
-                          setKey(selectedKey!, e.target.value)
-                        }
+                        value={isMacro ? "KC_NO" : selectedValue}
+                        disabled={isMacro}
+                        onChange={(e) => {
+                          if (selectedKey === null) return;
+                          setKey(selectedKey, e.target.value);
+                        }}
                       >
                         {(keyCategories[activeTab] || []).map((k) => (
                           <option key={k} value={k}>
@@ -272,6 +281,33 @@ function App() {
                       </p>
                     </div>
 
+                    {/* ===== MACRO ASSIGN ===== */}
+<div>
+  <p className="text-sm text-gray-400 mb-1">Assign Macro</p>
+
+  <select
+    className="w-full p-2 bg-gray-700 rounded"
+    value={isMacro ? selectedValue : ""}
+    onChange={(e) => {
+      const val = e.target.value;
+
+      if (selectedKey === null) return;
+      if (val === "") {
+        setKey(selectedKey, "KC_NO");
+        return;
+      }
+      setKey(selectedKey, val);
+    }}
+  >
+    <option value="">None</option>
+
+    {macros.map((m) => (
+      <option key={m.id} value={`MACRO_${m.id}`}>
+        {m.name}
+      </option>
+    ))}
+  </select>
+</div>
                   </div>
                 ) : (
                   <p className="text-gray-400">Select a key</p>
