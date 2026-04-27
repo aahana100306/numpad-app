@@ -1,4 +1,5 @@
 import { useDeviceStore } from "../store/deviceStore";
+import { useEffect } from "react";
 
 function Macros() {
   const {
@@ -9,9 +10,25 @@ function Macros() {
     selectMacro,
     addStep,
     removeStep,
+    isRecording,
+    startRecording,
+    stopRecording,
+    recordKey,
   } = useDeviceStore();
 
   const currentMacro = macros.find((m) => m.id === selectedMacro);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (!isRecording) return;
+        const key = `KC_${e.key.toUpperCase()}`;
+        recordKey(key);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+    };
+}, [isRecording]);
 
   return (
     <div className="flex h-full gap-4">
@@ -78,7 +95,7 @@ function Macros() {
             </h2>
 
             {/* ===== ADD STEP BUTTONS ===== */}
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-4 items-center">
               <button
                 onClick={() =>
                   addStep({ type: "key", key: "KC_A" })
@@ -96,6 +113,20 @@ function Macros() {
               >
                 Add Delay
               </button>
+
+              {/* 🔴 RECORD BUTTON */}
+              <button
+                onClick={() =>
+                    isRecording ? stopRecording() : startRecording()
+                }
+                className={`px-4 py-2 rounded ${
+                    isRecording
+                      ? "bg-red-600 animate-pulse"
+                      : "bg-red-500 hover:bg-red-600"
+                }`}
+            >
+                {isRecording ? "Recording..." : "Record"}
+            </button>
             </div>
 
             {/* ===== STEPS LIST ===== */}

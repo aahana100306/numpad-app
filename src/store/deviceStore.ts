@@ -33,6 +33,11 @@ type DeviceState = {
   addStep: (step: MacroStep) => void;
   removeStep: (index: number) => void;
 
+  isRecording: boolean;
+  startRecording: () => void;
+  stopRecording: () => void;
+  recordKey: (key: string) => void;
+
   hasUnsavedChanges: boolean;
   saveChanges: () => void;
 
@@ -207,6 +212,32 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
           : m
       ),
     })),
+
+    isRecording: false,
+    startRecording: () =>
+        set(() => ({
+            isRecording: true,
+        })),
+
+    stopRecording: () =>
+        set(() => ({
+            isRecording: false,
+        })),
+
+    recordKey: (key) =>
+        set((state) => {
+            if (!state.isRecording) return state;
+            return {
+                macros: state.macros.map((m) =>
+                    m.id === state.selectedMacro
+                      ? {
+                        ...m,
+                        steps: [...m.steps, { type: "key", key }],
+                        }
+                      : m
+                ),
+            };
+        }),
 
   /* SAVE STATE */
   hasUnsavedChanges: false,
