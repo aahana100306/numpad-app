@@ -1,6 +1,5 @@
+import { useState, useEffect } from "react";
 import { useDeviceStore } from "../store/deviceStore";
-import { useEffect } from "react";
-
 import {
   DndContext,
   closestCenter,
@@ -14,26 +13,20 @@ import {
 
 import { CSS } from "@dnd-kit/utilities";
 
-/* ================= DRAGGABLE STEP ================= */
 
-function DraggableStep({ step, index }: any) {
+// 🔹 DRAGGABLE STEP COMPONENT
+function DraggableStep({ step, index, removeStep }: any) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-  } = useSortable({
-    id: index,
-  });
+  } = useSortable({ id: index.toString() });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    boxShadow: transform
-      ? "0 8px 20px rgba(0,0,0,0.4)"
-      : undefined,
-    zIndex: transform ? 999 : "auto",
   };
 
   return (
@@ -42,188 +35,195 @@ function DraggableStep({ step, index }: any) {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-gray-700 p-3 rounded flex justify-between items-center cursor-grab active:cursor-grabbing hover:bg-gray-600 transition"
+      className="flex justify-between items-center bg-gray-700 px-3 py-2 rounded cursor-grab active:cursor-grabbing transition-all duration-200"
     >
       <span>
-        {step.type === "key"
-          ? `Key: ${step.key}`
-          : `Delay: ${step.ms} ms`}
+        {step.type === "delay"
+          ? `Delay: ${step.ms}ms`
+          : `${step.type}: ${step.key}`}
       </span>
+
+      <button
+        onClick={() => removeStep(index)}
+        className="text-red-400"
+      >
+        ✕
+      </button>
     </div>
   );
 }
 
-/* ================= MAIN COMPONENT ================= */
 
 function Macros() {
   const {
     macros,
-    selectedMacro,
-    reorderSteps,
+    selectedMacroId,
     addMacro,
-    deleteMacro,
     selectMacro,
     addStep,
     removeStep,
-    isRecording,
-    startRecording,
-    stopRecording,
-    recordKey,
+    reorderSteps,
+    toggleRepeat,
+    setDelayBetween,
   } = useDeviceStore();
 
-  const currentMacro = macros.find((m) => m.id === selectedMacro);
+  const [isRecording, setIsRecording] = useState(false);
 
+  const currentMacro = macros.find((m) => m.id === selectedMacroId);
+
+  // 🎙️ RECORD MODE
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if (!isRecording) return;
       const key = `KC_${e.key.toUpperCase()}`;
-      recordKey(key);
+      addStep({ type: "key", key });
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [isRecording]);
 
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex h-full gap-6">
 
-      {/* ================= LEFT PANEL ================= */}
-      <div className="w-1/3 bg-gray-800 p-4 rounded">
-        <h2 className="text-lg font-bold mb-4">Macros</h2>
-
+      {/* LEFT PANEL */}
+      <div className="w-64 bg-gray-800 rounded-xl p-4 space-y-3">
         <button
           onClick={addMacro}
-          className="w-full bg-blue-500 hover:bg-blue-600 p-2 rounded mb-4"
+          className="w-full bg-blue-500 py-2 rounded"
         >
           + New Macro
         </button>
 
-        {macros.length === 0 && (
-          <p className="text-gray-400 text-sm">
-            No macros yet
-          </p>
-        )}
-
-        {macros.map((macro) => (
+        {macros.map((m) => (
           <div
-            key={macro.id}
-            onClick={() => selectMacro(macro.id)}
-            className={`p-3 mb-2 rounded cursor-pointer transition ${
-              selectedMacro === macro.id
-                ? "bg-blue-600"
-                : "bg-gray-700 hover:bg-gray-600"
+            key={m.id}
+            onClick={() => selectMacro(m.id)}
+            className={`p-2 rounded cursor-pointer ${
+              selectedMacroId === m.id
+                ? "bg-blue-500"
+                : "bg-gray-700"
             }`}
           >
-            <div className="flex justify-between items-center">
-              <span className="font-medium">{macro.name}</span>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteMacro(macro.id);
-                }}
-                className="text-red-400 hover:text-red-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-300">
-              {macro.steps.length} steps
-            </p>
+            {m.name} ({m.steps.length})
           </div>
         ))}
       </div>
 
-      {/* ================= RIGHT PANEL ================= */}
-      <div className="flex-1 bg-gray-800 p-4 rounded">
+      {/* RIGHT PANEL */}
+      <div className="flex-1 bg-gray-900 rounded-xl p-6 space-y-6">
+
         {!currentMacro ? (
-          <div className="text-gray-400">
-            Select a macro to edit
-          </div>
+          <p>Select a macro</p>
         ) : (
           <>
-            <h2 className="text-lg font-bold mb-4">
-              {currentMacro.name}
-            </h2>
+            {/* 🎙 RECORD BUTTON */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsRecording(!isRecording)}
+                className={`w-16 h-16 rounded-full ${
+                  isRecording
+                    ? "bg-red-600 animate-pulse"
+                    : "bg-gray-700"
+                }`}
+              />
+              <span>
+                {isRecording ? "Recording..." : "Record"}
+              </span>
+            </div>
 
-            {/* ===== ADD STEP BUTTONS ===== */}
-            <div className="flex gap-3 mb-4 items-center">
+            {/* ➕ ADD STEP */}
+            <div className="flex gap-2">
               <button
                 onClick={() =>
                   addStep({ type: "key", key: "KC_A" })
                 }
-                className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded"
+                className="bg-gray-700 px-3 py-1 rounded"
               >
-                Add Key
+                Key Press
+              </button>
+
+              <button
+                onClick={() =>
+                  addStep({ type: "keydown", key: "KC_A" })
+                }
+                className="bg-gray-700 px-3 py-1 rounded"
+              >
+                Key Down
+              </button>
+
+              <button
+                onClick={() =>
+                  addStep({ type: "keyup", key: "KC_A" })
+                }
+                className="bg-gray-700 px-3 py-1 rounded"
+              >
+                Key Up
               </button>
 
               <button
                 onClick={() =>
                   addStep({ type: "delay", ms: 100 })
                 }
-                className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded"
+                className="bg-gray-700 px-3 py-1 rounded"
               >
-                Add Delay
-              </button>
-
-              <button
-                onClick={() =>
-                  isRecording
-                    ? stopRecording()
-                    : startRecording()
-                }
-                className={`px-4 py-2 rounded ${
-                  isRecording
-                    ? "bg-red-600 animate-pulse"
-                    : "bg-red-500 hover:bg-red-600"
-                }`}
-              >
-                {isRecording ? "Recording..." : "Record"}
+                Delay
               </button>
             </div>
 
-            {/* ===== STEPS LIST ===== */}
-            <div className="flex flex-col gap-2">
-              {currentMacro.steps.length === 0 && (
-                <p className="text-gray-400 text-sm">
-                  No steps yet
-                </p>
-              )}
+            {/* 📋 DRAGGABLE STEPS LIST */}
+            <DndContext
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => {
+                const { active, over } = event;
 
-              <DndContext
-                collisionDetection={closestCenter}
-                onDragEnd={(event) => {
-                  const { active, over } = event;
-                  if (!over) return;
+                if (!over || active.id === over.id) return;
 
-                  const oldIndex = active.id as number;
-                  const newIndex = over.id as number;
+                const oldIndex = Number(active.id);
+                const newIndex = Number(over.id);
 
-                  if (oldIndex !== newIndex) {
-                    reorderSteps(oldIndex, newIndex);
-                  }
-                }}
+                reorderSteps(oldIndex, newIndex);
+              }}
+            >
+              <SortableContext
+                items={currentMacro.steps.map((_, i) =>
+                  i.toString()
+                )}
+                strategy={verticalListSortingStrategy}
               >
-                <SortableContext
-                  items={currentMacro.steps.map((_, i) => i)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-2">
-                    {currentMacro.steps.map((step, index) => (
-                      <DraggableStep
-                        key={index}
-                        step={step}
-                        index={index}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
+                <div className="space-y-2">
+                  {currentMacro.steps.map((step, i) => (
+                    <DraggableStep
+                      key={i}
+                      index={i}
+                      step={step}
+                      removeStep={removeStep}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
 
+            {/* ⚙️ BOTTOM SETTINGS */}
+            <div className="flex items-center gap-4 mt-4">
+              <label className="flex gap-2 items-center">
+                <input
+                  type="checkbox"
+                  checked={currentMacro.repeat}
+                  onChange={toggleRepeat}
+                />
+                Repeat while held
+              </label>
+
+              <input
+                type="number"
+                value={currentMacro.delayBetween}
+                onChange={(e) =>
+                  setDelayBetween(Number(e.target.value))
+                }
+                className="w-24 bg-gray-700 p-1 rounded"
+                placeholder="Delay ms"
+              />
             </div>
           </>
         )}

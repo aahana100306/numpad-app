@@ -26,12 +26,14 @@ type DeviceState = {
   setHoveredKey: (index: number | null) => void;
 
   macros: Macro[];
-  selectedMacro: number | null;
+  selectedMacroId: number | null;
   addMacro: () => void;
   deleteMacro: (id: number) => void;
   selectMacro: (id: number) => void;
   addStep: (step: MacroStep) => void;
   removeStep: (index: number) => void;
+  toggleRepeat: () => void;
+  setDelayBetween: (value: number) => void;
 
   isRecording: boolean;
   startRecording: () => void;
@@ -86,12 +88,16 @@ type DeviceState = {
 
 type MacroStep =
   | { type: "key"; key: string }
+  | { type: "keydown"; key: string }
+  | { type: "keyup"; key: string }
   | { type: "delay"; ms: number };
 
 type Macro = {
     id: number;
     name: string;
     steps: MacroStep[];
+    repeat: boolean;
+    delayBetween: number;
 };
 
 
@@ -167,18 +173,20 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
   setHoveredKey: (index) => set({ hoveredKey: index }),
 
   macros: [],
-  selectedMacro: null,
+  selectedMacroId: null,
   addMacro: () =>
     set((state) => {
         const newMacro: Macro = {
             id: Date.now(),
             name: `Macro ${state.macros.length + 1}`,
             steps: [],
+            repeat: false,
+            delayBetween: 0,
         };
 
         return {
             macros: [...state.macros, newMacro],
-            selectedMacro: newMacro.id,
+            selectedMacroId: newMacro.id,
         };
     }),
 
@@ -186,18 +194,16 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
         set((state) => ({
             macros: state.macros.filter((m) => m.id !== id),
             selectedMacro:
-              state.selectedMacro === id ? null : state.selectedMacro,
+              state.selectedMacroId === id ? null : state.selectedMacroId,
         })),
 
-    selectMacro: (id) =>
-    set(() => ({
-      selectedMacro: id,
-    })),
+    selectMacro: (id: number) =>
+        set({ selectedMacroId: id }),
 
-    addStep: (step) =>
+    addStep: (step: MacroStep) =>
     set((state) => ({
       macros: state.macros.map((m) =>
-        m.id === state.selectedMacro
+        m.id === state.selectedMacroId
           ? { ...m, steps: [...m.steps, step] }
           : m
       ),
@@ -206,7 +212,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
     removeStep: (index) =>
     set((state) => ({
       macros: state.macros.map((m) =>
-        m.id === state.selectedMacro
+        m.id === state.selectedMacroId
           ? {
               ...m,
               steps: m.steps.filter((_, i) => i !== index),
@@ -231,7 +237,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
             if (!state.isRecording) return state;
             return {
                 macros: state.macros.map((m) =>
-                    m.id === state.selectedMacro
+                    m.id === state.selectedMacroId
                       ? {
                         ...m,
                         steps: [...m.steps, { type: "key", key }],
@@ -244,7 +250,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
     reorderSteps: (from, to) =>
         set((state) => {
             const macro = state.macros.find(
-                (m) => m.id === state.selectedMacro
+                (m) => m.id === state.selectedMacroId
             );
             if (!macro) return state;
             const updatedSteps = [...macro.steps];
@@ -252,12 +258,31 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
             updatedSteps.splice(to, 0, moved);
             return {
                 macros: state.macros.map((m) =>
-                    m.id === state.selectedMacro
+                    m.id === state.selectedMacroId
                       ? { ...m, steps: updatedSteps }
                       : m
                 ),
             };
         }),
+    
+    toggleRepeat: () =>
+        set((state) => ({
+            macros: state.macros.map((m) =>
+                m.id === state.selectedMacroId
+                  ? { ...m, repeat: !m.repeat }
+                  : m
+),
+})),
+
+    setDelayBetween: (value: number) =>
+        set((state) => ({
+            macros: state.macros.map((m) =>
+                m.id === state.selectedMacroId
+                  ? { ...m, delayBetween: value }
+                  : m
+            ),
+        })),
+
 
   /* SAVE STATE */
   hasUnsavedChanges: false,
@@ -289,6 +314,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
         keymaps: newKeymaps,
         profiles: state.profiles,
         currentProfile: state.currentProfile,
+        macros: state.macros,
       });
 
       return newState;
@@ -321,6 +347,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
         keymaps: state.keymaps,
         profiles: newProfiles,
         currentProfile: state.currentProfile,
+        macros: state.macros,
       });
 
       return { profiles: newProfiles };
@@ -335,6 +362,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
         keymaps: profile.keymaps,
         profiles: state.profiles,
         currentProfile: name,
+        macros: state.macros,
       });
 
       return {
@@ -351,6 +379,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
         keymaps: state.keymaps,
         profiles: newProfiles,
         currentProfile: state.currentProfile,
+        macros: state.macros,
       });
 
       return { profiles: newProfiles };
@@ -385,6 +414,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
         keymaps: state.keymaps,
         profiles: newProfiles,
         currentProfile: state.currentProfile,
+        macros: state.macros,
       });
 
       return { profiles: newProfiles };
